@@ -1,15 +1,9 @@
 // index.js
 require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const cors = require('cors');
-const morgan = require('morgan');
-
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const messageHandler = require('./messageHandler');
 
-// 🟢 Inicializa el bot
 const startBot = async () => {
   console.log('⏳ Inicializando cliente...');
 
@@ -42,72 +36,22 @@ const startBot = async () => {
     }
   });
 
-sock.ev.on('messages.upsert', async ({ messages, type }) => {
-  for (const msg of messages) {
-    if (!msg?.message) continue;
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    for (const msg of messages) {
+      if (!msg?.message) continue;
+      if (msg.key.fromMe) continue;
 
-    // 🚫 Ignorar mensajes enviados por el bot
-    if (msg.key.fromMe) {
-      console.log('🔁 Mensaje enviado por el bot. Ignorado.');
-      continue;
+      const isSystem = msg.message?.protocolMessage || msg.message?.senderKeyDistributionMessage;
+      if (isSystem) continue;
+      if (type !== 'notify') continue;
+
+      try {
+        await messageHandler(sock, msg);
+      } catch (err) {
+        console.error('❌ Error en messageHandler:', err);
+      }
     }
-
-    // 🚫 Ignorar mensajes reenviados, de distribución o de protocolo
-    const isSystem = msg.message?.protocolMessage || msg.message?.senderKeyDistributionMessage;
-    if (isSystem) {
-      console.log('📦 Mensaje del sistema. Ignorado.');
-      continue;
-    }
-
-    // 🚫 Ignorar mensajes antiguos (solo responder a tipo 'notify')
-    if (type !== 'notify') {
-      console.log(`⏳ Tipo de mensaje no es 'notify' (${type}). Ignorado.`);
-      continue;
-    }
-
-    try {
-      await messageHandler(sock, msg);
-    } catch (err) {
-      console.error('❌ Error en messageHandler:', err);
-    }
-  }
-});
-
-
+  });
 };
 
 startBot();
-
-// 🌐 Servidor Express para mantener activo en Render
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-app.use(morgan('dev'));
-
-app.get('/', (req, res) => {
-  res.send('🤖 Bot de WhatsApp activo');
-});
-
-app.get('/ping', (req, res) => {
-  res.json({ message: 'pong' });
-});
-
-const server = http.createServer(app);
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT)
-  .on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      const fallbackPort = PORT + 1;
-      console.log(`⚠️ Puerto ${PORT} ocupado. Probando con ${fallbackPort}...`);
-      server.listen(fallbackPort, () => {
-        console.log(`🚀 Servidor Express activo en puerto ${fallbackPort}`);
-      });
-    } else {
-      throw err;
-    }
-  })
-  .on('listening', () => {
-    console.log(`🚀 Servidor Express activo en puerto ${PORT}`);
-  });
