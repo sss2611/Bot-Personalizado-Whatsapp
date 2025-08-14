@@ -1,4 +1,3 @@
-// index.js
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
@@ -8,6 +7,9 @@ const morgan = require('morgan');
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const messageHandler = require('./messageHandler');
+
+// ⏳ Delay para reconexión segura
+const delay = ms => new Promise(res => setTimeout(res, ms));
 
 // 🟢 Inicializa el bot
 const startBot = async () => {
@@ -26,7 +28,7 @@ const startBot = async () => {
     const { connection, lastDisconnect } = update;
 
     if (connection === 'close') {
-      const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+      const reason = new Boom(lastDisconnect?.error || {}).output?.statusCode;
 
       if (reason === DisconnectReason.loggedOut) {
         console.log('🔒 Sesión cerrada. Escaneá el QR nuevamente.');
@@ -34,6 +36,7 @@ const startBot = async () => {
         console.log('⚠️ Conexión cerrada. Reconectando...');
       }
 
+      await delay(3000);
       return startBot();
     }
 
@@ -42,38 +45,33 @@ const startBot = async () => {
     }
   });
 
-sock.ev.on('messages.upsert', async ({ messages, type }) => {
-  for (const msg of messages) {
-    if (!msg?.message) continue;
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    for (const msg of messages) {
+      if (!msg?.message) continue;
 
-    // 🚫 Ignorar mensajes enviados por el bot
-    if (msg.key.fromMe) {
-      console.log('🔁 Mensaje enviado por el bot. Ignorado.');
-      continue;
+      if (msg.key.fromMe) {
+        console.log('🔁 Mensaje enviado por el bot. Ignorado.');
+        continue;
+      }
+
+      const isSystem = msg.message?.protocolMessage || msg.message?.senderKeyDistributionMessage;
+      if (isSystem) {
+        console.log('📦 Mensaje del sistema. Ignorado.');
+        continue;
+      }
+
+      if (type !== 'notify') {
+        console.log(`⏳ Tipo de mensaje no es 'notify' (${type}). Ignorado.`);
+        continue;
+      }
+
+      try {
+        await messageHandler(sock, msg);
+      } catch (err) {
+        console.error('❌ Error en messageHandler:', err);
+      }
     }
-
-    // 🚫 Ignorar mensajes reenviados, de distribución o de protocolo
-    const isSystem = msg.message?.protocolMessage || msg.message?.senderKeyDistributionMessage;
-    if (isSystem) {
-      console.log('📦 Mensaje del sistema. Ignorado.');
-      continue;
-    }
-
-    // 🚫 Ignorar mensajes antiguos (solo responder a tipo 'notify')
-    if (type !== 'notify') {
-      console.log(`⏳ Tipo de mensaje no es 'notify' (${type}). Ignorado.`);
-      continue;
-    }
-
-    try {
-      await messageHandler(sock, msg);
-    } catch (err) {
-      console.error('❌ Error en messageHandler:', err);
-    }
-  }
-});
-
-
+  });
 };
 
 startBot();
@@ -96,18 +94,6 @@ app.get('/ping', (req, res) => {
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT)
-  .on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      const fallbackPort = PORT + 1;
-      console.log(`⚠️ Puerto ${PORT} ocupado. Probando con ${fallbackPort}...`);
-      server.listen(fallbackPort, () => {
-        console.log(`🚀 Servidor Express activo en puerto ${fallbackPort}`);
-      });
-    } else {
-      throw err;
-    }
-  })
-  .on('listening', () => {
-    console.log(`🚀 Servidor Express activo en puerto ${PORT}`);
-  });
+server.listen(PORT, () => {
+  console.log(`🚀 Servidor Express activo en puerto ${PORT}`);
+});
