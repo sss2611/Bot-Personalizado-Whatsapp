@@ -27,7 +27,7 @@ module.exports = async (sock, msg) => {
   // 🛠️ Lógica directa
   if (['hola', 'buenas', 'holaaa', 'ok', ''].includes(lowerText)) {
     await sock.sendMessage(jid, {
-      text: 'Somos EsTODOMADERA, madera que dura, confianza que crece 💫',
+      text: '¡Bienvenido a EsTODOMADERA! 📦 Estanterías de madera a medida — ¡Listas para entrega inmediata! 💫',
     });
     return;
   }
