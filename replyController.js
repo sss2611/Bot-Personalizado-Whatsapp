@@ -117,9 +117,9 @@ async function getReply(sock, jid, text, msg) {
     }
 
     // 🛒 Flujo conversacional
-    if (['hola', 'buenas', 'holaaa', 'ok', ''].includes(lowerText)) {
+    if (['hola', 'buenas', 'holaaa', 'ok', '.'].includes(lowerText)) {
         await sock.sendMessage(jid, {
-            text: 'Somos EsTODOMADERA, madera que dura, confianza que crece 💫',
+            text: '¡Bienvenido a EsTODOMADERA! Fabricamos estanterías de madera a medida y con stock disponible para entrega inmediata.💫',
         });
 
         for (const key of Object.keys(productos)) {
