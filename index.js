@@ -5,8 +5,9 @@ const http = require('http');
 const cors = require('cors');
 const morgan = require('morgan');
 
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
+const qrcode = require('qrcode-terminal');
 const messageHandler = require('./messageHandler');
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
@@ -15,15 +16,23 @@ const startBot = async () => {
   console.log('⏳ Inicializando cliente...');
 
   const { state, saveCreds } = await useMultiFileAuthState('./auth');
+  const { version, isLatest } = await fetchLatestBaileysVersion();
+
+  console.log(`📦 Usando versión de WhatsApp Web: ${version.join('.')}${isLatest ? ' (última)' : ''}`);
 
   const sock = makeWASocket({
+    version,
     auth: state,
-    printQRInTerminal: true,
+    browser: ['Bot Personalizado', 'Chrome', '120'],
   });
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+    if (qr) {
+      qrcode.generate(qr, { small: true }); // 👈 imprime el QR manualmente
+    }
+
     if (connection === 'close') {
       const reason = new Boom(lastDisconnect?.error || {}).output?.statusCode;
 

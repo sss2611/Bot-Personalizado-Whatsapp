@@ -8,53 +8,39 @@ setInterval(() => {
 }, 1000 * 60 * 5);
 
 module.exports = async (sock, msg) => {
-  const jid = msg.key?.remoteJid;
-  if (!jid || jid.endsWith('@g.us') || msg.key.fromMe) return;
+  const texto = msg.message?.conversation?.trim();
 
-  const messageId = msg.key.id;
-  if (recentMessages.has(messageId)) return;
-  recentMessages.add(messageId);
-
-  const text =
-    msg.message?.conversation ||
-    msg.message?.extendedTextMessage?.text ||
-    msg.message?.imageMessage?.caption ||
-    msg.message?.documentMessage?.caption ||
-    '';
-
-  const lowerText = text.toLowerCase();
-
-  // 🛠️ Lógica directa
-  if (['hola', 'buenas', 'holaaa', 'ok', '.', 'info', 'precio', 'de donde sos?'].includes(lowerText)) {
-    await sock.sendMessage(jid, {
-      text: '¡Bienvenido a EsTODOMADERA! 📦 Estanterías de madera a medida — ¡Listas para entrega inmediata! 💫',
-    });
-
-    await sock.sendMessage(jid, {
-      text: '¿Qué deseas saber?',
-      footer: 'Selecciona una opción tocando el botón 👇',
-      templateButtons: [
-        { index: 1, quickReplyButton: { displayText: '📍 Dirección', id: 'ubicacion' } },
-        { index: 2, quickReplyButton: { displayText: '🕒 Horarios', id: 'horarios' } },
-        { index: 3, quickReplyButton: { displayText: '📷 Ver catálogo', id: 'catalogo' } },
-      ],
-    }, { quoted: msg });
-
-    await sock.sendMessage(jid, {
-      text: '¿Querés hacer un pedido?',
-      footer: 'Tocá el botón si querés ver modelos disponibles 👇',
-      templateButtons: [
-        { index: 1, quickReplyButton: { displayText: '🛒 Hacer pedido', id: 'pedido' } },
-      ],
-    }, { quoted: msg });
-
+  // 🛑 Ignorar mensajes vacíos, puntos, emojis sueltos, etc.
+  if (!texto || texto.length < 2 || /^[\.\,\!\?\s]+$/.test(texto)) {
+    console.log('📭 Mensaje irrelevante ignorado:', texto);
     return;
   }
 
-  // 🧠 Lógica delegada al replyController
-  const isButtonResponse = !!msg.message?.buttonsResponseMessage;
-  if (!isButtonResponse) {
-    const replied = await getReply(sock, jid, msg);
-    if (replied) return;
+  // ✅ Procesar solo si el texto coincide con comandos válidos
+  const comandosValidos = ['hola', 'pedido', 'info', 'catálogo'];
+  const textoNormalizado = texto.toLowerCase();
+
+  if (!comandosValidos.includes(textoNormalizado)) {
+    await sock.sendMessage(msg.key.remoteJid, {
+      text: '🤖 No entendí tu mensaje. Usá el menú para comenzar.',
+    });
+    return;
   }
+
+  // 🧭 Flujo guiado
+  if (textoNormalizado === 'hola') {
+    await sock.sendMessage(msg.key.remoteJid, {
+      text: '¡Bienvenido a EsTODOMADERA! 📦 Estanterías de madera a medida — ¡Listas para entrega inmediata! 💫',
+    });
+
+    await sock.sendMessage(msg.key.remoteJid, {
+      text: '¿Qué deseas saber?',
+      buttons: [
+        { buttonId: 'pedido', buttonText: { displayText: '🛒 Hacer un pedido' }, type: 1 },
+        { buttonId: 'info', buttonText: { displayText: 'ℹ️ Ver información' }, type: 1 },
+      ],
+    });
+  }
+
+  // Podés seguir con lógica para 'pedido', 'info', etc.
 };
