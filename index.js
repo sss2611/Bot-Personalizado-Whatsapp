@@ -48,8 +48,13 @@ const startBot = async () => {
       try {
         await messageHandler(sock, msg);
       } catch (err) {
-        console.error('❌ Error en messageHandler:', err);
+        if (err.message?.includes('No matching sessions')) {
+          console.log('⚠️ Mensaje no descifrado. Ignorado.');
+        } else {
+          console.error('❌ Error en messageHandler:', err);
+        }
       }
+
     }
   });
 };
