@@ -30,30 +30,23 @@ module.exports = async (sock, msg) => {
       text: '¡Bienvenido a EsTODOMADERA! 📦 Estanterías de madera a medida — ¡Listas para entrega inmediata! 💫',
     });
 
-    await delay(500); // ⏳ Espera breve para evitar saturación
-
     await sock.sendMessage(jid, {
-      buttons: [
-        { buttonId: 'ubicacion', buttonText: { displayText: '📍 Dirección' }, type: 1 },
-        { buttonId: 'horarios', buttonText: { displayText: '🕒 Horarios' }, type: 1 },
-        { buttonId: 'catalogo', buttonText: { displayText: '📷 Ver catálogo' }, type: 1 },
+      text: '¿Qué deseas saber?',
+      footer: 'Selecciona una opción tocando el botón 👇',
+      templateButtons: [
+        { index: 1, quickReplyButton: { displayText: '📍 Dirección', id: 'ubicacion' } },
+        { index: 2, quickReplyButton: { displayText: '🕒 Horarios', id: 'horarios' } },
+        { index: 3, quickReplyButton: { displayText: '📷 Ver catálogo', id: 'catalogo' } },
       ],
-      contentText: '¿Qué deseas saber?',
-      footerText: 'Selecciona una opción tocando el botón 👇',
-      headerType: 1,
     }, { quoted: msg });
 
-    await delay(500); // ⏳ Otro delay para el segundo bloque
-
     await sock.sendMessage(jid, {
-      buttons: [
-        { buttonId: 'pedido', buttonText: { displayText: '🛒 Hacer pedido' }, type: 1 },
+      text: '¿Querés hacer un pedido?',
+      footer: 'Tocá el botón si querés ver modelos disponibles 👇',
+      templateButtons: [
+        { index: 1, quickReplyButton: { displayText: '🛒 Hacer pedido', id: 'pedido' } },
       ],
-      contentText: '¿Querés hacer un pedido?',
-      footerText: 'Tocá el botón si querés ver modelos disponibles 👇',
-      headerType: 1,
     }, { quoted: msg });
-
 
     return;
   }

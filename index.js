@@ -54,7 +54,6 @@ const startBot = async () => {
           console.error('❌ Error en messageHandler:', err);
         }
       }
-
     }
   });
 };
