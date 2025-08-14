@@ -1,5 +1,6 @@
 // messageHandler.js
 const recentMessages = new Set();
+const { getReply } = require('./replyController');
 
 // 🧹 Limpieza automática cada 5 minutos
 setInterval(() => {
@@ -7,18 +8,8 @@ setInterval(() => {
 }, 1000 * 60 * 5);
 
 module.exports = async (sock, msg) => {
-  if (!msg?.key?.remoteJid) return;
-
-  const jid = msg.key.remoteJid;
-  const isGroup = jid.endsWith('@g.us');
-  if (isGroup) return;
-
-  if (msg.key.fromMe) return;
-
-  const isSystem = msg.message?.protocolMessage || msg.message?.senderKeyDistributionMessage;
-  if (isSystem) return;
-
-  if (msg.message?.stickerMessage) return;
+  const jid = msg.key?.remoteJid;
+  if (!jid || jid.endsWith('@g.us') || msg.key.fromMe) return;
 
   const messageId = msg.key.id;
   if (recentMessages.has(messageId)) return;
@@ -29,14 +20,19 @@ module.exports = async (sock, msg) => {
     msg.message?.extendedTextMessage?.text ||
     msg.message?.imageMessage?.caption ||
     msg.message?.documentMessage?.caption ||
-    null;
+    '';
 
-  const hasText = !!text;
-  const hasMedia = msg.message?.imageMessage || msg.message?.documentMessage;
+  const lowerText = text.toLowerCase();
 
-  if (!hasText && !hasMedia) return;
+  // 🛠️ Lógica directa
+  if (['hola', 'buenas', 'holaaa', 'ok', ''].includes(lowerText)) {
+    await sock.sendMessage(jid, {
+      text: 'Somos EsTODOMADERA, madera que dura, confianza que crece 💫',
+    });
+    return;
+  }
 
-  await sock.sendMessage(jid, {
-    text: '🤖 Hola, gracias por tu mensaje. En breve te responderemos.',
-  });
+  // 🧠 Lógica delegada al replyController
+  const replied = await getReply(sock, jid, msg);
+  if (replied) return;
 };

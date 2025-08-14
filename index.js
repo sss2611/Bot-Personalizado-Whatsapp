@@ -1,3 +1,4 @@
+// index.js
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
@@ -8,10 +9,8 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = requi
 const { Boom } = require('@hapi/boom');
 const messageHandler = require('./messageHandler');
 
-// ⏳ Delay para reconexión segura
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
-// 🟢 Inicializa el bot
 const startBot = async () => {
   console.log('⏳ Inicializando cliente...');
 
@@ -24,9 +23,7 @@ const startBot = async () => {
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
-
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
       const reason = new Boom(lastDisconnect?.error || {}).output?.statusCode;
 
@@ -47,24 +44,7 @@ const startBot = async () => {
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     for (const msg of messages) {
-      if (!msg?.message) continue;
-
-      if (msg.key.fromMe) {
-        console.log('🔁 Mensaje enviado por el bot. Ignorado.');
-        continue;
-      }
-
-      const isSystem = msg.message?.protocolMessage || msg.message?.senderKeyDistributionMessage;
-      if (isSystem) {
-        console.log('📦 Mensaje del sistema. Ignorado.');
-        continue;
-      }
-
-      if (type !== 'notify') {
-        console.log(`⏳ Tipo de mensaje no es 'notify' (${type}). Ignorado.`);
-        continue;
-      }
-
+      if (!msg?.message || msg.key.fromMe || type !== 'notify') continue;
       try {
         await messageHandler(sock, msg);
       } catch (err) {
@@ -76,20 +56,14 @@ const startBot = async () => {
 
 startBot();
 
-// 🌐 Servidor Express para mantener activo en Render
+// 🌐 Express para mantener activo en Render
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(morgan('dev'));
 
-app.get('/', (req, res) => {
-  res.send('🤖 Bot de WhatsApp activo');
-});
-
-app.get('/ping', (req, res) => {
-  res.json({ message: 'pong' });
-});
+app.get('/', (req, res) => res.send('🤖 Bot de WhatsApp activo'));
+app.get('/ping', (req, res) => res.json({ message: 'pong' }));
 
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
