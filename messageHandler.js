@@ -30,7 +30,8 @@ module.exports = async (sock, msg) => {
       text: '¡Bienvenido a EsTODOMADERA! 📦 Estanterías de madera a medida — ¡Listas para entrega inmediata! 💫',
     });
 
-    // Primer bloque de botones (máximo 3)
+    await delay(500); // ⏳ Espera breve para evitar saturación
+
     await sock.sendMessage(jid, {
       buttons: [
         { buttonId: 'ubicacion', buttonText: { displayText: '📍 Dirección' }, type: 1 },
@@ -42,8 +43,8 @@ module.exports = async (sock, msg) => {
       headerType: 1,
     }, { quoted: msg });
 
+    await delay(500); // ⏳ Otro delay para el segundo bloque
 
-    // Segundo bloque de botón adicional
     await sock.sendMessage(jid, {
       buttons: [
         { buttonId: 'pedido', buttonText: { displayText: '🛒 Hacer pedido' }, type: 1 },
