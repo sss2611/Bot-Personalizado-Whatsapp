@@ -32,25 +32,27 @@ module.exports = async (sock, msg) => {
 
     // Primer bloque de botones (máximo 3)
     await sock.sendMessage(jid, {
-      text: '¿Qué deseas saber?',
-      footer: 'Selecciona una opción tocando el botón 👇',
       buttons: [
         { buttonId: 'ubicacion', buttonText: { displayText: '📍 Dirección' }, type: 1 },
         { buttonId: 'horarios', buttonText: { displayText: '🕒 Horarios' }, type: 1 },
         { buttonId: 'catalogo', buttonText: { displayText: '📷 Ver catálogo' }, type: 1 },
       ],
+      contentText: '¿Qué deseas saber?',
+      footerText: 'Selecciona una opción tocando el botón 👇',
       headerType: 1,
-    });
+    }, { quoted: msg });
+
 
     // Segundo bloque de botón adicional
     await sock.sendMessage(jid, {
-      text: '¿Querés hacer un pedido?',
-      footer: 'Tocá el botón si querés ver modelos disponibles 👇',
       buttons: [
         { buttonId: 'pedido', buttonText: { displayText: '🛒 Hacer pedido' }, type: 1 },
       ],
+      contentText: '¿Querés hacer un pedido?',
+      footerText: 'Tocá el botón si querés ver modelos disponibles 👇',
       headerType: 1,
-    });
+    }, { quoted: msg });
+
 
     return;
   }
