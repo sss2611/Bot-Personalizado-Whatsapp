@@ -5,21 +5,20 @@ const { Boom } = require('@hapi/boom');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');
 const path = require('path');
-const delay = ms => new Promise(res => setTimeout(res, ms));
-
+const delay = require('../utils/delay');
+const logger = require('../utils/logger');
 const messageHandler = require('../handlers/messageHandler');
 
 const AUTH_FOLDER = path.resolve(__dirname, '../../auth');
-
 if (!fs.existsSync(AUTH_FOLDER)) fs.mkdirSync(AUTH_FOLDER);
 
 const startBot = async () => {
-    console.log('⏳ Inicializando cliente...');
+    logger.info('⏳ Inicializando cliente...');
 
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
     const { version, isLatest } = await fetchLatestBaileysVersion();
 
-    console.log(`📦 Usando versión de WhatsApp Web: ${version.join('.')}${isLatest ? ' (última)' : ''}`);
+    logger.info(`📦 Usando versión de WhatsApp Web: ${version.join('.')}${isLatest ? ' (última)' : ''}`);
 
     const sock = makeWASocket({
         version,
@@ -34,28 +33,20 @@ const startBot = async () => {
 
         if (connection === 'close') {
             const reason = new Boom(lastDisconnect?.error || {}).output?.statusCode;
-
             if (reason === DisconnectReason.loggedOut) {
-                console.log('🔒 Sesión cerrada. Escaneá el QR nuevamente.');
+                logger.warn('🔒 Sesión cerrada. Escaneá el QR nuevamente.');
             } else {
-                console.log('⚠️ Conexión cerrada. Reconectando...');
+                logger.warn('⚠️ Conexión cerrada. Reconectando...');
             }
-
-            await delay(3000);
+            await delay(3000, 'Reconexión automática');
             return startBot();
         }
 
         if (connection === 'open') {
-            console.log('✅ Bot conectado correctamente.');
-
+            logger.info('✅ Bot conectado correctamente.');
             const { platform, device } = sock.authState.creds;
-            console.log(`🧪 Sesión actual: ${platform} (${device})`);
-
-            if (platform !== 'android') {
-                console.warn('⚠️ Esta sesión no es compatible con botones interactivos.');
-            } else {
-                console.log('✅ Sesión compatible con botones interactivos.');
-            }
+            logger.info(`🧪 Sesión actual: ${platform} (${device})`);
+            logger.info(`✅ ¿Sesión Android?: ${platform === 'android'}`);
         }
     });
 
@@ -66,9 +57,9 @@ const startBot = async () => {
                 await messageHandler(sock, msg);
             } catch (err) {
                 if (err.message?.includes('No matching sessions')) {
-                    console.log('⚠️ Mensaje no descifrado. Ignorado.');
+                    logger.warn('⚠️ Mensaje no descifrado. Ignorado.');
                 } else {
-                    console.error('❌ Error en messageHandler:', err);
+                    logger.error(`❌ Error en messageHandler: ${err.message}`);
                 }
             }
         }
