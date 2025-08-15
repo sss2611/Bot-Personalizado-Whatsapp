@@ -1,6 +1,7 @@
 // messageHandler.js
 const recentMessages = new Set();
 const { getReply } = require('./replyController');
+const { mostrarMenuPrincipal } = require('./menuController'); // si lo tenés separado
 
 // 🧹 Limpieza automática cada 5 minutos
 setInterval(() => {
@@ -8,39 +9,35 @@ setInterval(() => {
 }, 1000 * 60 * 5);
 
 module.exports = async (sock, msg) => {
-  const texto = msg.message?.conversation?.trim();
+  const jid = msg.key?.remoteJid;
+  if (!jid || jid.endsWith('@g.us') || msg.key.fromMe) return;
 
-  // 🛑 Ignorar mensajes vacíos, puntos, emojis sueltos, etc.
-  if (!texto || texto.length < 2 || /^[\.\,\!\?\s]+$/.test(texto)) {
-    console.log('📭 Mensaje irrelevante ignorado:', texto);
+  const messageId = msg.key.id;
+  if (recentMessages.has(messageId)) return;
+  recentMessages.add(messageId);
+
+  const text =
+    msg.message?.conversation ||
+    msg.message?.extendedTextMessage?.text ||
+    msg.message?.imageMessage?.caption ||
+    msg.message?.documentMessage?.caption ||
+    '';
+
+  const lowerText = text.toLowerCase();
+
+  // 🛠️ Lógica directa
+  if (lowerText === 'hola') {
+    console.log('Enviando menú principal...');
+    await mostrarMenuPrincipal(sock, msg);
     return;
   }
 
-  // ✅ Procesar solo si el texto coincide con comandos válidos
-  const comandosValidos = ['hola', 'pedido', 'info', 'catálogo'];
-  const textoNormalizado = texto.toLowerCase();
-
-  if (!comandosValidos.includes(textoNormalizado)) {
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: '🤖 No entendí tu mensaje. Usá el menú para comenzar.',
-    });
-    return;
+  // 🧠 Lógica delegada al replyController
+  const isButtonResponse = !!msg.message?.buttonsResponseMessage;
+  if (!isButtonResponse) {
+    const replied = await getReply(sock, jid, msg);
+    if (replied) return;
   }
 
-  // 🧭 Flujo guiado
-  if (textoNormalizado === 'hola') {
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: '¡Bienvenido a EsTODOMADERA! 📦 Estanterías de madera a medida — ¡Listas para entrega inmediata! 💫',
-    });
-
-    await sock.sendMessage(msg.key.remoteJid, {
-      text: '¿Qué deseas saber?',
-      buttons: [
-        { buttonId: 'pedido', buttonText: { displayText: '🛒 Hacer un pedido' }, type: 1 },
-        { buttonId: 'info', buttonText: { displayText: 'ℹ️ Ver información' }, type: 1 },
-      ],
-    });
-  }
-
-  // Podés seguir con lógica para 'pedido', 'info', etc.
+  return;
 };

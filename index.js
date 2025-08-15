@@ -46,9 +46,22 @@ const startBot = async () => {
       return startBot();
     }
 
-    if (connection === 'open') {
-      console.log('✅ Bot conectado correctamente.');
-    }
+  if (connection === 'open') {
+  console.log('✅ Bot conectado correctamente.');
+
+  const platform = sock.authState.creds.platform;
+  const device = sock.authState.creds.device;
+
+  console.log(`🧪 Sesión actual: ${platform} (${device})`);
+
+  if (platform !== 'android') {
+    console.warn('⚠️ Esta sesión no es compatible con botones interactivos.');
+  } else {
+    console.log('✅ Sesión compatible con botones interactivos.');
+  }
+}
+
+
   });
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
