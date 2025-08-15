@@ -10,17 +10,20 @@ Bot conversacional desarrollado en Node.js, desplegado en **Render**, con sesió
 
 ## 📁 Estructura del proyecto
 
-Bot-Personalizado-WhatsApp/ 
-├── 📄 index.js → Lógica principal del bot + servidor Express 
-├── 📄 messageHandler.js → Manejo de mensajes entrantes 
-├── 📄 replyController.js → Controlador de respuestas automáticas
-
-├── 🖼️ media/ → Imágenes enviadas por el bot 
-│ ├── 1.jpg 
-│ ├── 2.jpg
-│ ├── 3.jpg 
-│ └── 4.jpg
-
+📁 bot-personalizado-whatsapp/
+├── index.js
+├── package.json
+├── .env
+├── auth/
+└── /src
+     └── handlers/
+           └── messageHandler.js
+     └── utils/
+           └── logger.js
+           └── delay.js
+     └── config/
+          └── env.js
+          └── baileys.js
 ├── 🔐 auth/ → Carpeta de sesión persistente (generada por Baileys)
 
 ├── ⚙️ .env → Variables de entorno (ej. AUTHORIZED_NUMBER)
