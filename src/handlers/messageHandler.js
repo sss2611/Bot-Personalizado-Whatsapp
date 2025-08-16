@@ -1,7 +1,6 @@
 // src/handlers/messageHandler.js
 const delay = require('../utils/delay');
 const logger = require('../utils/logger');
-
 const { sendFollowUp } = require('../utils/sendFollowUp');
 const { sendMenuTexto } = require('../utils/buttonManager');
 const { responder } = require('../core/contextualResponder');
@@ -15,27 +14,29 @@ const {
 
 // 🎯 Mapeo de números y palabras
 const opcionesNumericas = {
-    '1': 'productos',
-    'uno': 'productos',
-    '2': 'direccion',
-    'dos': 'direccion',
-    '3': 'horarios',
-    'tres': 'horarios',
-    '4': 'pedido',
-    'cuatro': 'pedido',
-    '5': 'dueno',
-    'cinco': 'dueno',
-    '6': 'ayuda',
-    'seis': 'ayuda'
+    '1': 'productos', 'uno': 'productos',
+    '2': 'direccion', 'dos': 'direccion',
+    '3': 'horarios', 'tres': 'horarios',
+    '4': 'pedido', 'cuatro': 'pedido',
+    '5': 'dueno', 'cinco': 'dueno',
+    '6': 'ayuda', 'seis': 'ayuda'
 };
 
 const messageHandler = async (sock, msg) => {
     const sender = msg.key.remoteJid;
     const message = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
-    const buttonId = msg.message?.buttonsResponseMessage?.selectedButtonId || msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
+    const buttonId = msg.message?.buttonsResponseMessage?.selectedButtonId ||
+        msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
+
     const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text;
     const isReply = !!quotedText;
+    const isReplyToProduct =
+        quotedMsg?.productMessage ||
+        quotedText?.includes('wa.me/c/') ||
+        quotedText?.startsWith('*') ||
+        quotedText?.toLowerCase().includes('estantería') ||
+        quotedText?.toLowerCase().includes('madera');
 
     const lowerMsg = message?.toLowerCase().trim();
     let contexto = isReply ? `${quotedText.toLowerCase().trim()} → ${lowerMsg}` : lowerMsg;
@@ -62,28 +63,22 @@ const messageHandler = async (sock, msg) => {
     console.log(`🧠 Contexto interpretado: ${contexto}`);
     console.log('📊 Estado actual del usuario:', debeEnviarSaludo(sender) ? 'sin saludo' : 'ya saludado');
 
-    // 🧠 Saludo inicial
-    if (debeEnviarSaludo(sender)) {
-        await sock.sendMessage(sender, {
-            text: '👋 Bienvenido a *EsTODOMADERA*\n📦 Estanterías de madera a medida — ¡Listas para entrega inmediata!\n¿Qué deseas saber?',
-        });
-        await sendMenuTexto(sock, sender);
-        marcarSaludo(sender);
-        return;
-    }
-
-    // 📦 Mensaje desde el catálogo (reply a un producto)
-    if (quotedText?.includes('wa.me/c/')) {
+    // 📦 Mensaje desde el catálogo (prioridad absoluta)
+    if (isReplyToProduct) {
         setUserState(sender, 'inactivo');
         marcarPedido(sender, 'mensajeDesdeCatalogo');
 
-        // 🏷️ Extraer nombre del producto si está disponible
-        const nombreProducto = quotedText
-            .split('\n')[0] // primera línea suele ser el título
-            .replace(/\*/g, '') // quitar asteriscos si los hay
-            .trim();
+        const nombreProducto = quotedMsg?.productMessage?.product?.name ||
+            quotedText?.split('\n')[0]?.replace(/\*/g, '').trim() ||
+            'Producto desconocido';
 
-        logger.evento('MENSAJE_DESDE_CATALOGO', `Usuario ${sender} respondió a producto: "${nombreProducto}"`);
+        const comentarioUsuario = message?.trim() || '(sin mensaje)';
+
+        logger.evento('MENSAJE_DESDE_CATALOGO', {
+            usuario: sender,
+            producto: nombreProducto,
+            comentario: comentarioUsuario
+        });
 
         await sock.sendMessage(sender, {
             text: '📞 En un momento me comunico con vos.',
@@ -104,11 +99,19 @@ const messageHandler = async (sock, msg) => {
         return;
     }
 
+    // 🧠 Saludo inicial
+    if (debeEnviarSaludo(sender)) {
+        await sock.sendMessage(sender, {
+            text: '👋 Bienvenido a *EsTODOMADERA*\n📦 Estanterías de madera a medida — ¡Listas para entrega inmediata!\n¿Qué deseas saber?',
+        });
+        await sendMenuTexto(sock, sender);
+        marcarSaludo(sender);
+        return;
+    }
+
     // 📍 Dirección
     if (
-        contexto?.includes('direccion') ||
-        contexto?.includes('ubicacion') ||
-        contexto?.includes('donde') ||
+        contexto?.includes('direccion') || contexto?.includes('ubicacion') || contexto?.includes('donde') ||
         buttonId === 'direccion'
     ) {
         setUserState(sender, 'activo');
@@ -122,9 +125,7 @@ const messageHandler = async (sock, msg) => {
 
     // 🕒 Horarios
     if (
-        contexto?.includes('horario') ||
-        contexto?.includes('hora') ||
-        contexto?.includes('cuando') ||
+        contexto?.includes('horario') || contexto?.includes('hora') || contexto?.includes('cuando') ||
         buttonId === 'horarios'
     ) {
         setUserState(sender, 'activo');
@@ -138,11 +139,8 @@ const messageHandler = async (sock, msg) => {
 
     // 🛍️ Productos
     if (
-        contexto?.includes('producto') ||
-        contexto?.includes('catalogo') ||
-        contexto?.includes('articulo') ||
-        contexto?.includes('comprar') ||
-        buttonId === 'productos'
+        contexto?.includes('producto') || contexto?.includes('catalogo') || contexto?.includes('articulo') ||
+        contexto?.includes('comprar') || buttonId === 'productos'
     ) {
         setUserState(sender, 'activo');
         marcarPedido(sender, 'pidioProductos');
@@ -155,14 +153,9 @@ const messageHandler = async (sock, msg) => {
 
     // 📞 Contacto directo
     if (
-        contexto?.includes('pedido') ||
-        contexto?.includes('chatear') ||
-        contexto?.includes('dueño') ||
-        contexto?.includes('pagar') ||
-        contexto?.includes('vos') ||
-        buttonId === 'pedido' ||
-        buttonId === 'dueno' ||
-        buttonId === 'pagar'
+        contexto?.includes('pedido') || contexto?.includes('chatear') || contexto?.includes('dueño') ||
+        contexto?.includes('pagar') || contexto?.includes('vos') ||
+        buttonId === 'pedido' || buttonId === 'dueno' || buttonId === 'pagar'
     ) {
         setUserState(sender, 'inactivo');
         marcarPedido(sender, 'pidioContacto');
@@ -187,10 +180,8 @@ const messageHandler = async (sock, msg) => {
 
     // 👋 Despedida
     if (
-        contexto?.includes('chau') ||
-        contexto?.includes('nos vemos') ||
-        contexto?.includes('no') ||
-        contexto?.includes('adios')
+        contexto?.includes('chau') || contexto?.includes('nos vemos') ||
+        contexto?.includes('no') || contexto?.includes('adios')
     ) {
         setUserState(sender, 'inactivo');
         await sock.sendMessage(sender, {
@@ -216,7 +207,6 @@ const messageHandler = async (sock, msg) => {
     const comandosValidos = Object.values(opcionesNumericas).concat([
         'menu', 'chau', 'nos vemos', 'no', 'hola', 'pedido', 'chatear', 'dueño', 'comprar', 'pagar', 'vos'
     ]);
-
     const contieneComando = comandosValidos.some(cmd => contexto?.includes(cmd));
 
     if (!contexto || contexto === '' || (!buttonId && !contieneComando)) {
