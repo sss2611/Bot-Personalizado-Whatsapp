@@ -18,6 +18,11 @@ const messageHandler = async (sock, msg) => {
     if (!message && !buttonId) return;
 
     const lowerMsg = message?.toLowerCase().trim();
+    const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text;
+    const isReply = !!quotedText;
+    const contexto = isReply ? `${quotedText.toLowerCase().trim()} → ${lowerMsg}` : lowerMsg;
+
     const userState = getUserState(sender);
     const isAndroid = msg.key.id?.includes(':');
 
@@ -29,6 +34,7 @@ const messageHandler = async (sock, msg) => {
     console.log(`🧪 ID del mensaje: ${msg.key.id}`);
     console.log(`✅ ¿Cliente Android?: ${isAndroid}`);
     console.log(`📨 Mensaje recibido: ${lowerMsg}`);
+    console.log(`🧠 Contexto interpretado: ${contexto}`);
     console.log('📊 Estado actual del usuario:', debeEnviarSaludo(sender) ? 'sin saludo' : 'ya saludado');
 
     // 🧠 Saludo inicial
@@ -43,9 +49,9 @@ const messageHandler = async (sock, msg) => {
 
     // 📍 Dirección
     if (
-        lowerMsg?.includes('direccion') ||
-        lowerMsg?.includes('ubicacion') ||
-        lowerMsg?.includes('donde') ||
+        contexto?.includes('direccion') ||
+        contexto?.includes('ubicacion') ||
+        contexto?.includes('donde') ||
         buttonId === 'direccion'
     ) {
         setUserState(sender, 'activo');
@@ -59,9 +65,9 @@ const messageHandler = async (sock, msg) => {
 
     // 🕒 Horarios
     if (
-        lowerMsg?.includes('horario') ||
-        lowerMsg?.includes('hora') ||
-        lowerMsg?.includes('cuando') ||
+        contexto?.includes('horario') ||
+        contexto?.includes('hora') ||
+        contexto?.includes('cuando') ||
         buttonId === 'horarios'
     ) {
         setUserState(sender, 'activo');
@@ -75,17 +81,17 @@ const messageHandler = async (sock, msg) => {
 
     // 🛍️ Productos
     if (
-        lowerMsg?.includes('producto') ||
-        lowerMsg?.includes('catalogo') ||
-        lowerMsg?.includes('articulo') ||
-        lowerMsg?.includes('comprar') ||
+        contexto?.includes('producto') ||
+        contexto?.includes('catalogo') ||
+        contexto?.includes('articulo') ||
+        contexto?.includes('comprar') ||
         buttonId === 'productos'
     ) {
         console.log('🛒 Solicitud de productos detectada');
         setUserState(sender, 'activo');
         marcarPedido(sender, 'pidioProductos');
         await sock.sendMessage(sender, {
-            text: '🛍️ Puedes ver mis artículos en mi catálogo *AQUÍ*:\n\n👉 https://wa.me/c/5493855075058',
+            text: '🛍️ Puedes ver los artículos disponibles en mi catálogo:\n\n 👉 *https://wa.me/c/5493855941088*',
         });
         await sendFollowUp(sock, sender, isAndroid);
         return;
@@ -93,11 +99,11 @@ const messageHandler = async (sock, msg) => {
 
     // 📞 Contacto directo
     if (
-        lowerMsg?.includes('pedido') ||
-        lowerMsg?.includes('chatear') ||
-        lowerMsg?.includes('dueño') ||
-        lowerMsg?.includes('pagar') ||
-        lowerMsg?.includes('vos') ||
+        contexto?.includes('pedido') ||
+        contexto?.includes('chatear') ||
+        contexto?.includes('dueño') ||
+        contexto?.includes('pagar') ||
+        contexto?.includes('vos') ||
         buttonId === 'pedido' ||
         buttonId === 'dueno' ||
         buttonId === 'pagar'
@@ -112,10 +118,10 @@ const messageHandler = async (sock, msg) => {
 
     // 👋 Despedida
     if (
-        lowerMsg?.includes('chau') ||
-        lowerMsg?.includes('nos vemos') ||
-        lowerMsg?.includes('no') ||
-        lowerMsg?.includes('adios')
+        contexto?.includes('chau') ||
+        contexto?.includes('nos vemos') ||
+        contexto?.includes('no') ||
+        contexto?.includes('adios')
     ) {
         setUserState(sender, 'inactivo');
         await sock.sendMessage(sender, {
@@ -130,22 +136,20 @@ const messageHandler = async (sock, msg) => {
         'nos vemos', 'no', 'hola', 'pedido', 'chatear', 'dueño', 'comprar', 'pagar', 'vos'
     ];
 
-    const contieneComando = comandosValidos.some(cmd => lowerMsg?.includes(cmd));
+    const contieneComando = comandosValidos.some(cmd => contexto?.includes(cmd));
 
-    if (!lowerMsg || lowerMsg === '' || (!buttonId && !contieneComando)) {
+    if (!contexto || contexto === '' || (!buttonId && !contieneComando)) {
         console.log('⚠️ Mensaje no reconocido, se envía seguimiento');
         setUserState(sender, 'activo');
-        await sock.sendMessage(sender, {
-            text: '❓ No entendí tu mensaje. Estas son las opciones disponibles:',
-        });
         await sendFollowUp(sock, sender, isAndroid);
         return;
     }
 
     // 🧠 Respuesta contextual
     setUserState(sender, 'activo');
-    const respuesta = responder(sender, lowerMsg);
+    const respuesta = responder(sender, contexto);
     await sock.sendMessage(sender, { text: respuesta });
 };
 
 module.exports = messageHandler;
+
