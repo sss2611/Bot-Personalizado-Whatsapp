@@ -16,6 +16,9 @@ Bot conversacional desarrollado en Node.js, desplegado en **Render**, con sesió
 ├── .env
 ├── auth/
 └── /src
+│   ├── core/                        # Nuevo módulo para lógica conversacional
+│   │   ├── userStateManager.js     # Estado activo/inactivo por usuario
+│   │   └── contextualResponder.js  # Respuestas según contexto y estado
      └── handlers/
            └── messageHandler.js
      └── utils/
