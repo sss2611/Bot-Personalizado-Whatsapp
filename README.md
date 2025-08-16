@@ -10,33 +10,26 @@ Bot conversacional desarrollado en Node.js, desplegado en **Render**, con sesió
 
 ## 📁 Estructura del proyecto
 
-📁 bot-whatsapp-personalizado/
-├── index.js                  # Punto de entrada principal
-├── package.json              # Configuración y dependencias
-├── .env                      # Variables de entorno
-├── render.yaml               # Configuración de despliegue en Render
-├── README.md                 # Documentación del proyecto
+📁 bot-personalizado-whatsapp/
+├── index.js
+├── package.json
+├── .env
+├── auth/
+└── /src
+     └── handlers/
+           └── messageHandler.js
+     └── utils/
+           └── logger.js
+           └── delay.js
+     └── config/
+          └── env.js
+          └── baileys.js
+├── 🔐 auth/ → Carpeta de sesión persistente (generada por Baileys)
 
-├── 🔐 auth/               # Carpeta persistente de Baileys (renombrada desde auth/)
-│   └── ...                   # Archivos generados automáticamente
-
-└── src
-│    ├── 📦 config/                # Configuración centralizada
-│    ├── env.js               # Carga y validación de variables de entorno
-│    └── baileys.js           # Inicialización del cliente Baileys
-│
-│    ├── 🧠 core/                # Lógica de negocio (renombrado desde core/)
-│    ├── userStateManager.js  # Estado activo/inactivo por usuario
-│    └── contextualResponder.js # Respuestas según contexto y estado
-│
-│    ├── 🎯 handlers/              # Manejadores de eventos
-│    └── messageHandler.js    # Lógica principal de mensajes entrantes
-
-├── 🛠️ utils/              # Servicios auxiliares
-│   ├── logger.js            # Logging centralizado
-│   ├── delay.js             # Utilidad para demoras
-│   └── sendFollowUp.js      # Envío de menú adaptativo
-│   └── buttonManager.js     # Botones y menú textual
+├── ⚙️ .env → Variables de entorno (ej. AUTHORIZED_NUMBER)
+├── 📦 package.json → Dependencias y configuración del proyecto 
+├── 🚀 render.yaml → Configuración para despliegue en Render 
+└── 📘 README.md → Documentación del proyecto
 
 ---
 
