@@ -3,11 +3,11 @@ const { sendMenu, sendMenuTexto } = require('./buttonManager');
 const { getUserState } = require('../core/userStateManager');
 
 const opcionesMap = {
-    productos: { id: 'productos', label: '🛍️ Ver productos' },
+    productos: { id: 'productos', label: '🛍️ Ver artículos' },
     direccion: { id: 'direccion', label: '📍 Ver dirección' },
     horarios: { id: 'horarios', label: '🕒 Ver horarios' },
     pedido:   { id: 'pedido', label: '🔄 Hacer un pedido' },
-    dueno:    { id: 'dueno', label: '💬 Chatear con el dueño' },
+    dueno:    { id: 'dueno', label: '💬 Comunicarte con el dueño' },
     ayuda:    { id: 'ayuda', label: '❓ Ayuda' },
 };
 
