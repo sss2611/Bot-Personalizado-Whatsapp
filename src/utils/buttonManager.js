@@ -16,14 +16,21 @@ const sendMenu = async (sock, jid, isAndroid, opciones = []) => {
     }
 };
 
-const sendMenuTexto = async (sock, jid, opciones = []) => {
+const generarTextoOpciones = (opciones = [], encabezado = '📋 Respondeme:') => {
     const texto = opciones.length
-        ? opciones.map(({ label }, i) => `${i + 1}️⃣ *${label.toUpperCase()}*`).join('\n')
-        : '1️⃣ *CATÁLOGO* \n2️⃣ *DIRECCIÓN* \n3️⃣ *HORARIOS* \n4️⃣ *COMPRAR* \n5️⃣ *CONTACTO* \n6️⃣ *AYUDA*';
+        ? opciones.map(({ label }, i) => `${i + 1}️⃣ ${label.toUpperCase()}`).join('\n')
+        : '1️⃣ 🛍️ VER PRODUCTOS\n2️⃣ 📍 VER DIRECCIÓN\n3️⃣ 🕒 VER HORARIOS\n4️⃣ 🔄 HACER UN PEDIDO\n5️⃣ 💬 CHATEAR CON EL DUEÑO\n6️⃣ ❓ AYUDA';
 
-    await sock.sendMessage(jid, {
-        text: `📋 Respondeme:\n\n${texto}\n\nEscribí solo lo que está resaltado.`,
-    });
+    return `${encabezado}\n\n${texto}\n\nEscribí solo el número o lo que está resaltado.`;
 };
 
-module.exports = { sendMenu, sendMenuTexto };
+const sendMenuTexto = async (sock, jid, opciones = []) => {
+    const texto = generarTextoOpciones(opciones);
+    await sock.sendMessage(jid, { text: texto });
+};
+
+module.exports = {
+    sendMenu,
+    sendMenuTexto,
+    generarTextoOpciones
+};

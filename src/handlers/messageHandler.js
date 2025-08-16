@@ -13,21 +13,43 @@ const {
     marcarPedido
 } = require('../core/userStateManager');
 
+// 🎯 Mapeo de números y palabras
+const opcionesNumericas = {
+    '1': 'productos',
+    'uno': 'productos',
+    '2': 'direccion',
+    'dos': 'direccion',
+    '3': 'horarios',
+    'tres': 'horarios',
+    '4': 'pedido',
+    'cuatro': 'pedido',
+    '5': 'dueno',
+    'cinco': 'dueno',
+    '6': 'ayuda',
+    'seis': 'ayuda'
+};
+
 const messageHandler = async (sock, msg) => {
     const sender = msg.key.remoteJid;
     const message = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
     const buttonId = msg.message?.buttonsResponseMessage?.selectedButtonId || msg.message?.listResponseMessage?.singleSelectReply?.selectedRowId;
-
-    if (!message && !buttonId) return;
-
-    const lowerMsg = message?.toLowerCase().trim();
     const quotedMsg = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     const quotedText = quotedMsg?.conversation || quotedMsg?.extendedTextMessage?.text;
     const isReply = !!quotedText;
-    const contexto = isReply ? `${quotedText.toLowerCase().trim()} → ${lowerMsg}` : lowerMsg;
+
+    const lowerMsg = message?.toLowerCase().trim();
+    let contexto = isReply ? `${quotedText.toLowerCase().trim()} → ${lowerMsg}` : lowerMsg;
+
+    // 🎯 Interpretar número o palabra como comando
+    if (opcionesNumericas[contexto]) {
+        logger.evento('NUMERO_RECONOCIDO', `Usuario ${sender} envió "${contexto}" → interpretado como "${opcionesNumericas[contexto]}"`);
+        contexto = opcionesNumericas[contexto];
+    }
 
     const userState = getUserState(sender);
     const isAndroid = msg.key.id?.includes(':');
+
+    if (!message && !buttonId) return;
 
     if (userState.estado === 'inactivo') {
         console.log('⏸️ Usuario en estado inactivo. No se responde hasta reactivación manual.');
@@ -50,6 +72,38 @@ const messageHandler = async (sock, msg) => {
         return;
     }
 
+    // 📦 Mensaje desde el catálogo (reply a un producto)
+    if (quotedText?.includes('wa.me/c/')) {
+        setUserState(sender, 'inactivo');
+        marcarPedido(sender, 'mensajeDesdeCatalogo');
+
+        // 🏷️ Extraer nombre del producto si está disponible
+        const nombreProducto = quotedText
+            .split('\n')[0] // primera línea suele ser el título
+            .replace(/\*/g, '') // quitar asteriscos si los hay
+            .trim();
+
+        logger.evento('MENSAJE_DESDE_CATALOGO', `Usuario ${sender} respondió a producto: "${nombreProducto}"`);
+
+        await sock.sendMessage(sender, {
+            text: '📞 En un momento me comunico con vos.',
+        });
+
+        const timeoutMin = parseInt(process.env.USER_INACTIVITY_TIMEOUT_MINUTES, 10) || 30;
+        delay(timeoutMin * 60 * 1000, `Reactivación de ${sender}`).then(async () => {
+            setUserState(sender, 'activo');
+            logger.evento('REACTIVACIÓN', `Usuario ${sender} reactivado automáticamente tras ${timeoutMin} minutos (mensaje desde catálogo)`);
+
+            await sock.sendMessage(sender, {
+                text: '👋 ¡Estoy de vuelta!\n¿Querés seguir explorando el catálogo o hacer otra consulta?',
+            });
+
+            await sendMenuTexto(sock, sender);
+        });
+
+        return;
+    }
+
     // 📍 Dirección
     if (
         contexto?.includes('direccion') ||
@@ -60,7 +114,7 @@ const messageHandler = async (sock, msg) => {
         setUserState(sender, 'activo');
         marcarPedido(sender, 'pidioDireccion');
         await sock.sendMessage(sender, {
-            text: '📍 Estamos en *Pje San Lorenzo 1261*\n\nUbicación: https://www.google.com.ar/maps/@-27.7988078,-64.2590085,20.92z?entry=ttu&g_ep=EgoyMDI1MDgxMS4wIKXMDSoASAFQAw%3D%3D',
+            text: '📍 Estamos en *Pje San Lorenzo 1261*\n\nUbicación: https://www.google.com.ar/maps/@-27.7988078,-64.2590085,20.92z?entry=ttu',
         });
         await sendFollowUp(sock, sender, isAndroid);
         return;
@@ -90,11 +144,10 @@ const messageHandler = async (sock, msg) => {
         contexto?.includes('comprar') ||
         buttonId === 'productos'
     ) {
-        console.log('🛒 Solicitud de productos detectada');
         setUserState(sender, 'activo');
         marcarPedido(sender, 'pidioProductos');
         await sock.sendMessage(sender, {
-            text: '🛍️ Puedes ver los artículos disponibles en mi catálogo:\n\n 👉 *https://wa.me/c/5493855941088*',
+            text: '🛍️ Puedes ver los artículos disponibles en mi catálogo:\n\n👉 *https://wa.me/c/5493855941088*',
         });
         await sendFollowUp(sock, sender, isAndroid);
         return;
@@ -117,7 +170,6 @@ const messageHandler = async (sock, msg) => {
             text: '📞 En un momento me comunico con vos.',
         });
 
-        // ⏳ Reactivación automática programada
         const timeoutMin = parseInt(process.env.USER_INACTIVITY_TIMEOUT_MINUTES, 10) || 30;
         delay(timeoutMin * 60 * 1000, `Reactivación de ${sender}`).then(async () => {
             setUserState(sender, 'activo');
@@ -145,7 +197,6 @@ const messageHandler = async (sock, msg) => {
             text: '👋 Hasta luego, que tengas buen día!',
         });
 
-        // ⏳ Reactivación automática programada
         const timeoutMin = parseInt(process.env.USER_INACTIVITY_TIMEOUT_MINUTES, 10) || 30;
         delay(timeoutMin * 60 * 1000, `Reactivación de ${sender}`).then(async () => {
             setUserState(sender, 'activo');
@@ -162,15 +213,13 @@ const messageHandler = async (sock, msg) => {
     }
 
     // 🧾 Fallback
-    const comandosValidos = [
-        'producto', 'direccion', 'horario', 'ayuda', 'menu', 'chau',
-        'nos vemos', 'no', 'hola', 'pedido', 'chatear', 'dueño', 'comprar', 'pagar', 'vos'
-    ];
+    const comandosValidos = Object.values(opcionesNumericas).concat([
+        'menu', 'chau', 'nos vemos', 'no', 'hola', 'pedido', 'chatear', 'dueño', 'comprar', 'pagar', 'vos'
+    ]);
 
     const contieneComando = comandosValidos.some(cmd => contexto?.includes(cmd));
 
     if (!contexto || contexto === '' || (!buttonId && !contieneComando)) {
-        console.log('⚠️ Mensaje no reconocido, se envía seguimiento');
         setUserState(sender, 'activo');
         await sendFollowUp(sock, sender, isAndroid);
         return;

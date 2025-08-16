@@ -32,12 +32,21 @@ const startBot = async () => {
         if (qr) qrcode.generate(qr, { small: true });
 
         if (connection === 'close') {
-            const reason = new Boom(lastDisconnect?.error || {}).output?.statusCode;
+            const error = lastDisconnect?.error;
+            const reason = new Boom(error || {}).output?.statusCode;
+            const conflict = error?.message?.includes('conflict');
+
+            if (conflict) {
+                logger.warn('⚠️ Sesión reemplazada por otra instancia. Abortando reconexión.');
+                return process.exit(1); // o detener el bot
+            }
+
             if (reason === DisconnectReason.loggedOut) {
                 logger.warn('🔒 Sesión cerrada. Escaneá el QR nuevamente.');
             } else {
                 logger.warn('⚠️ Conexión cerrada. Reconectando...');
             }
+
             await delay(3000, 'Reconexión automática');
             return startBot();
         }
@@ -49,6 +58,7 @@ const startBot = async () => {
             logger.info(`✅ ¿Sesión Android?: ${platform === 'android'}`);
         }
     });
+
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         for (const msg of messages) {
