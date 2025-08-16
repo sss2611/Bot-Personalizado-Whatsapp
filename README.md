@@ -6,8 +6,6 @@ Bot conversacional desarrollado en Node.js, desplegado en **Render**, con sesió
 
 ---
 
-
-
 ## 📁 Estructura del proyecto
 
 📁 bot-personalizado-whatsapp/
